@@ -352,8 +352,8 @@ const bleserver = {
 
         const _query = queryConfig.insert('log_beacon');
         const insertData = {
-            input_time,
-            timestamp,
+            input_time:  moment(timestamp).format('YYYY-MM-DD HH:mm:ss.SSS'),
+            timestamp: moment(timestamp).format('YYYY-MM-DD HH:mm:ss.SSS'),
             type,
             mac,
             uuid,
@@ -392,7 +392,7 @@ const bleserver = {
         const { timestamp, input_time, mac, major, minor, battery, battery_timestamp } = data;
         const _updateData = {
             bc_input_time: null,
-            bc_out_time: timestamp,
+            bc_out_time: moment(timestamp).format('YYYY-MM-DD HH:mm:ss.SSS'),
             bc_io_state: 'o',
             battery_remain: battery,
             battery_time: battery_timestamp
