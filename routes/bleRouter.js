@@ -11,7 +11,7 @@ const pool = require('./conifg/connectionPool');
 const queryConfig = require('./conifg/query/configQuery')
 
 // const ble = require('./conifg/ble');
-const ble = require('./conifg/ble_dev');
+const ble = require('./conifg/ble');
 ble.init();
 setInterval(()=>{
     ble.init();

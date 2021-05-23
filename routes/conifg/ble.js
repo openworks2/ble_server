@@ -3,7 +3,7 @@ const converter = require('hex2dec');
 const moment = require('moment');
 require('moment-timezone');
 moment.tz.setDefault("Asia/Seoul");
-
+var request = require('request');
 
 const pool = require('./connectionPool');
 const queryConfig = require('./query/configQuery')
@@ -57,13 +57,20 @@ const bleserver = {
                     } else {
                         const obj = results.reduce((obj, cur) => {
                             // obj[cur.bc_index] = cur;
-                            obj.push(cur.bc_address)
+                            if (_this.beaconList.indexOf(cur.bc_address) === -1) {
+                                obj.push(cur.bc_address)
+                            }
                             return obj;
                         }, []);
-                        _this.beaconList = obj;
+                        _this.beaconList = [
+                            ..._this.beaconList,
+                            ...obj
+                        ];
+                        // console.log('-->',_this.beaconList)
                     }
                 });
             }
+            connection.release();
         });
 
     },
@@ -88,6 +95,8 @@ const bleserver = {
                     }
                 });
             }
+            connection.release();
+
         });
     },
     receive(receiveData, scanner) {
@@ -116,13 +125,14 @@ const bleserver = {
     }, // end receive Fncs
     receiveHandler(data, scanner) {
         const _this = this;
+        console.log(_this.scannerGroup)
         const {
             type, timestamp,
             mac, ibeaconUuid,
             ibeaconMajor, ibeaconMinor,
             rssi, ibeaconTxPower
         } = data;
-
+        // console.log('ibeaconMinor-->>>>>', ibeaconMinor)
         const isMacProperty = _this.beaconData.hasOwnProperty(mac);
         if (isMacProperty) {
             // 1번 이상 수신 된적 있음
@@ -159,13 +169,13 @@ const bleserver = {
             }
 
             const scannLength = _this.beaconData[mac].scann.length;
-            if (scannLength > 5) {
+            if (scannLength >= 5) {
 
                 const location = _this.getLocation(_this.beaconData[mac])
                 console.log('location--->', location)
                 _this.beaconData[mac].location = location;
 
-                _this.inputReceive(_this.beaconData[mac])
+                _this.inputBeacon(_this.beaconData[mac])
                 // 그룹 체크   
                 _this.beaconData[mac].scanner = null;
 
@@ -242,9 +252,31 @@ const bleserver = {
     },
     getLocation(data) {
         const { scann, mac } = data;
+        //** Rssi 연산 */
+        // #1 그룹별 RSSI 합 구하기
+        let totalRssi = 0;
+        let avrRssi = scann.reduce((acc, curr) => {
+            const { group, rssi } = curr;
+            const absRssi = 100 + rssi;
+            acc[group] = acc[group] ? acc[group] + absRssi : absRssi;
+            totalRssi += absRssi;
+            return acc;
+        }, {});
+
+        // #2 그룹별 RSSI 평균 구한 후 0.6의 가중치(60%)
+        for (let keys in avrRssi) {
+            const percent = (avrRssi[keys] / totalRssi) * 100;
+            const result = percent * 0.6;
+            avrRssi = {
+                ...avrRssi,
+                [keys]: result
+            };
+        }
+        console.log("01.avrArr-->", avrRssi);
+
+        //** 빈도 수 연산 */
         // #1.내림차순 정렬
         const sortArr = scann.sort((next, prev) => {
-
             const PrevRssi = prev.rssi;
             const NextRssi = next.rssi;
             if (NextRssi < PrevRssi) return 1;
@@ -255,47 +287,41 @@ const bleserver = {
         // #2. 마지막 데이터 삭제
         const splitArr = sortArr.slice(0, sortArr.length - 1);
 
-        // #3. 배열 rssi 평균값 구하기
-        let avrArr = {};
-        let totalRssi = 0;
+        // #3. 그룹 빈도 수 구하기
         let counts = splitArr.reduce((acc, curr) => {
             const { group, rssi } = curr;
-            avrArr = {
-                ...avrArr,
-                [group]: avrArr[group] ? avrArr[group] + rssi : rssi
-            };
             acc[group] = (acc[group] || 0) + 1;
             return acc;
         }, {});
-        let totalCnt = 0;
 
-        for (let key in avrArr) {
-            const count = counts[key];
-            console.log('count-->', count)
-            const avg = (avrArr[key] / count);
-            const divAvg = 100 - Math.abs(avg);
-            console.log(divAvg)
-            const result = divAvg * 0.6;
-            avrArr[key] = result;
-            totalCnt = totalCnt + count;
-        }
         // #4. 빈도 값 계산
+        // #4-1 최솟값을 제외한 배열 길이
+        const splitLeng = splitArr.length;
+
+        // #4-2 그룹별 수신 비율 계산 가중치 0.4 (40%)
+        let resultGroup = {};
         for (let key in counts) {
-            counts[key] = parseInt(((counts[key] / totalCnt) * 100 * 0.4) + avrArr[key], 10);
+            const result = (counts[key] / splitLeng) * 100 * 0.4;
+            console.log(result);
+            resultGroup[key] = result + avrRssi[key];
         }
-        const keys = Object.keys(counts);
-        // console.log(keys)
+        console.log("resultGroup-->", resultGroup);
+
+        // #5 resultGroup(counts[key]+avrRssi[key]) 객체 비교 중 최댓값 추출
+        const keys = Object.keys(resultGroup);
         let mode = keys[0];
         keys.forEach((val, idx) => {
-            // console.log('--->',counts[mode])
-            if (counts[val] > counts[mode]) {
+            if (resultGroup[val] > resultGroup[mode]) {
                 mode = val;
-                // counts = counts[mode]
             }
         });
+        console.log(mode);
+
         return mode
+
     },
-    inputReceive(data) {
+    inputBeacon(data) {
+        const _this = this;
         const {
             input_time, timestamp, type, mac, uuid,
             major, minor, rssi,
@@ -305,15 +331,36 @@ const bleserver = {
             txpower: tx_power,
             rawData: rawdata
         } = data;
+
+        let _alarmState = minor;
+        if (minor === 2) {
+            const isMacProperty = this.emergency.hasOwnProperty(mac);
+            if (isMacProperty) {
+                // 변경
+                delete this.emergency[mac];
+                _alarmState = 1;
+            } else {
+                // 처음 등록
+                this.emergency = {
+                    ...this.emergency,
+                    [mac]: {
+                        date: timestamp,
+                        minor
+                    }
+                }
+                _this.getSOSWorkerInfo(mac);
+            }
+        }
+
         const _query = queryConfig.insert('log_beacon');
         const insertData = {
-            input_time,
-            timestamp,
+            input_time: moment().format('YYYY-MM-DD HH:mm:ss.SSS'),
+            timestamp: timestamp,
             type,
             mac,
             uuid,
             major,
-            minor,
+            minor: _alarmState,
             rssi,
             tx_power,
             log: JSON.stringify(log),
@@ -326,6 +373,7 @@ const bleserver = {
             battery_timestamp,
             rawdata
         }
+
         pool.getConnection((err, connection) => {
             if (err) {
                 console.error(err)
@@ -335,6 +383,7 @@ const bleserver = {
                         console.error(err)
                     } else {
                         // console.log(results);
+
                     }
                 });
             }
@@ -346,7 +395,7 @@ const bleserver = {
         const { timestamp, input_time, mac, major, minor, battery, battery_timestamp } = data;
         const _updateData = {
             bc_input_time: null,
-            bc_out_time: timestamp,
+            bc_out_time: moment().format('YYYY-MM-DD HH:mm:ss.SSS'),
             bc_io_state: 'o',
             battery_remain: battery,
             battery_time: battery_timestamp
@@ -370,23 +419,76 @@ const bleserver = {
         })
 
     },
-    alarmHandler(data) {
+    getSOSWorkerInfo(data) {
         const _this = this;
-        const { mac } = data;
-        const isMac = _this.emergency.hasOwnProperty(mac);
-        if (isMac) {
-            
-        } else {
-            // 처음 발생
-            console.log(data)
-            // _this.emergency={
-            //     ..._this.emergency,
-            //     [mac]: {
-            //         start_time: 
-            //     }
-            // }
-        }
-
+        const _query = `SELECT * FROM ble_input_beacon_view WHERE bc_address="${data}";`;
+        pool.getConnection((err, connection) => {
+            if (err) {
+                console.error(err)
+            } else {
+                connection.query(_query, (err, results, field) => {
+                    if (err) {
+                        console.error(err)
+                    } else {
+                        console.log(results);
+                        _this.getAlarmWorkerInfo(results[0]);
+                    }
+                });
+            }
+            connection.release();
+        })
+    },
+    getAlarmWorkerInfo(sosData) {
+        const _this = this;
+        const _query = `SELECT * FROM info_beacon_view WHERE wk_sms_yn=1;`;
+        pool.getConnection((err, connection) => {
+            if (err) {
+                console.error(err)
+            } else {
+                connection.query(_query, (err, results, field) => {
+                    if (err) {
+                        console.error(err)
+                    } else {
+                        console.log(results);
+                        let reqData = [];
+                        results.map(item => {
+                            const _data = {
+                                destPhone: item.wk_phone,
+                                location: sosData.local_name,
+                                companyName: sosData.wk_co_name,
+                                name: sosData.wk_name,
+                                phone: sosData.wk_phone
+                            }
+                            reqData.push(_data);
+                            return item;
+                        });
+                        console.log('sos--->>>', reqData);
+                        _this.alarmHandler(reqData);
+                    }
+                });
+            }
+            connection.release();
+        })
+    },
+    alarmHandler(reqData) {
+        const _this = this;
+        const posturl = 'http://119.207.78.144:8099/alarm/amons/sos';
+        // const reqData = {
+        //     destPhone: "010-9194-6506",
+        //     location: "함양종점",
+        //     companyName: "오픈웍스",
+        //     name: "이동훈",
+        //     phone: "01091946500"
+        // }
+        request.post({
+            url: posturl,
+            body: reqData,
+            json: true
+        }, (error, response, body) => {
+            console.error('error:', error); // Print the error if one occurred
+            console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
+            console.log('body:', body); // Print the HTML for the Google homepage.s
+        });
     }
 
 }
