@@ -45,7 +45,7 @@ const bleserver = {
     },
     getBeacon() {
         const _this = this;
-        const _query = queryConfig.findByAll('info_beacon');
+        const _query = queryConfig.findByAll('info_beacon_view');
 
         pool.getConnection((err, connection) => {
             if (err) {
@@ -107,7 +107,7 @@ const bleserver = {
             const { type, mac } = recBeacon
             // if (recBeacon.mac.indexOf('85F2') > -1 || recBeacon.mac.indexOf('21B9') > -1) {
 
-            if (_this.beaconList.indexOf(mac) > -1) {
+            if (_this.beaconList.indexOf(mac) > -1 && Object.keys(_this.scannerGroup).includes(scanner)) {
                 // Unknown= 배터리/3축정보 
                 if (type !== 'Unknown') {
                     _this.receiveHandler(recBeacon, scanner)
@@ -335,21 +335,31 @@ const bleserver = {
         let _alarmState = minor;
         if (minor === 2) {
             const isMacProperty = this.emergency.hasOwnProperty(mac);
+            console.log('emergency---->>>>>>>',isMacProperty)
             if (isMacProperty) {
                 // 변경
-                delete this.emergency[mac];
+                // delete this.emergency[mac];
                 _alarmState = 1;
+                return;
             } else {
                 // 처음 등록
                 this.emergency = {
                     ...this.emergency,
                     [mac]: {
                         date: timestamp,
-                        minor
+                        minor,
                     }
                 }
                 _this.getSOSWorkerInfo(mac);
             }
+        } else {
+            // minor === 1
+            const isMacProperty = this.emergency.hasOwnProperty(mac);
+            if(isMacProperty){
+                // minor: 2--->1 정상으로 돌아옴
+                delete this.emergency[mac];
+            }
+
         }
 
         const _query = queryConfig.insert('log_beacon');
@@ -431,6 +441,11 @@ const bleserver = {
                         console.error(err)
                     } else {
                         console.log(results);
+                        if(results[0].wk_id !== null){
+                            _this.insertEmergency(results[0]);
+                        } else {
+                            return;
+                        }
                         _this.getAlarmWorkerInfo(results[0]);
                     }
                 });
@@ -440,7 +455,7 @@ const bleserver = {
     },
     getAlarmWorkerInfo(sosData) {
         const _this = this;
-        const _query = `SELECT * FROM info_beacon_view WHERE wk_sms_yn=1;`;
+        const _query = `SELECT * FROM info_worker_view WHERE wk_sms_yn=1;`;
         pool.getConnection((err, connection) => {
             if (err) {
                 console.error(err)
@@ -449,8 +464,8 @@ const bleserver = {
                     if (err) {
                         console.error(err)
                     } else {
-                        console.log(results);
                         let reqData = [];
+                        console.log('--->',results)
                         results.map(item => {
                             const _data = {
                                 destPhone: item.wk_phone,
@@ -462,7 +477,6 @@ const bleserver = {
                             reqData.push(_data);
                             return item;
                         });
-                        console.log('sos--->>>', reqData);
                         _this.alarmHandler(reqData);
                     }
                 });
@@ -489,6 +503,36 @@ const bleserver = {
             console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
             console.log('body:', body); // Print the HTML for the Google homepage.s
         });
+    },
+    insertEmergency(data){
+        const _query = queryConfig.insert('log_emergency');
+        const insertData = {
+            emg_start_time: moment().format('YYYY-MM-DD HH:mm:ss.SSS'),
+            bc_address: data.bc_address,
+            scn_group: data.sc_group,
+            wk_name:data.wk_name,
+            wk_birth:data.wk_birth,
+            wk_phone:data.wk_phone,
+            wk_co_name:data.wk_co_name,
+            local_index: data.local_index,
+            local_name:data.local_name
+
+        };
+        
+        pool.getConnection((err, connection) => {
+            if (err) {
+                console.error(err)
+            } else {
+                connection.query(_query,insertData, (err, results, field) => {
+                    if (err) {
+                        console.error(err)
+                    } else {
+                        console.log(results);
+                    }
+                });
+            }
+            connection.release();
+        })
     }
 
 }
