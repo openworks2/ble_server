@@ -1,5 +1,4 @@
 const converter = require('hex2dec');
-const mysql = require("mysql");
 
 const moment = require('moment');
 require('moment-timezone');
@@ -56,55 +55,18 @@ const bleserver = {
                     if (err) {
 
                     } else {
-                        // const obj = results.reduce((obj, cur) => {
-                        //     // obj[cur.bc_index] = cur;
-                        //     if (_this.beaconList.indexOf(cur.bc_address) === -1) {
-                        //         obj.push(cur.bc_address)
-                        //     }
-                        //     return obj;
-                        // }, []);
-                        // _this.beaconList = [
-                        //     ..._this.beaconList,
-                        //     ...obj
-                        // ];
-
-                        const obj = results.map(item => {
-                            const _mac = item.bc_address;
-                            const isMac = _this.beaconData.hasOwnProperty(_mac)
-                            if (isMac) {
-                                if (item.bc_used_type !== 0) {
-                                    _this.beaconData = {
-                                        ...this.beaconData,
-                                        [_mac]: {
-                                            ..._this.beaconData[_mac],
-                                            ...item
-                                        }
-                                    }
-                                } else {
-                                    // _this.beaconData.remove(_mac);
-                                    // _this.outBeacon(_this.beaconData[_mac]);
-                                    delete _this.beaconData[_mac];
-                                }
-                            } else {
-                                if (item.bc_used_type !== 0) {
-                                    _this.beaconData = {
-                                        ...this.beaconData,
-                                        [_mac]: {
-                                            ...item,
-                                            scann: [],
-                                            log: [],
-                                            prev_location: null
-                                        }
-                                    }
-                                }
+                        const obj = results.reduce((obj, cur) => {
+                            // obj[cur.bc_index] = cur;
+                            if (_this.beaconList.indexOf(cur.bc_address) === -1) {
+                                obj.push(cur.bc_address)
                             }
-
-                            return item;
-                        });
-                        console.log('beaconData--->>', _this.beaconData)
-
-
-
+                            return obj;
+                        }, []);
+                        _this.beaconList = [
+                            ..._this.beaconList,
+                            ...obj
+                        ];
+                        console.log(results)
                     }
                 });
             }
@@ -129,7 +91,7 @@ const bleserver = {
                             return obj;
                         }, {});
                         _this.scannerGroup = obj;
-                        // console.log(_this.scannerGroup)
+                        console.log(_this.scannerGroup)
                     }
                 });
             }
@@ -145,7 +107,7 @@ const bleserver = {
             const { type, mac } = recBeacon
             // if (recBeacon.mac.indexOf('85F2') > -1 || recBeacon.mac.indexOf('21B9') > -1) {
 
-            if (_this.beaconData.hasOwnProperty(mac) && Object.keys(_this.scannerGroup).includes(scanner)) {
+            if (_this.beaconList.indexOf(mac) > -1 && Object.keys(_this.scannerGroup).includes(scanner)) {
                 // Unknown= 배터리/3축정보 
                 if (type !== 'Unknown') {
                     _this.receiveHandler(recBeacon, scanner)
@@ -185,6 +147,7 @@ const bleserver = {
                     scanner,
                     uuid: ibeaconUuid,
                     major: ibeaconMajor,
+
                     minor: ibeaconMinor,
                     rssi: rssi,
                     txpower: ibeaconTxPower,
@@ -225,34 +188,33 @@ const bleserver = {
 
         } else {
             // 처음 수신
-            // _this.beaconData = {
-            //     ..._this.beaconData,
-            //     [mac]: {
-            //         input_time: timestamp,
-            //         timestamp,
-            //         type,
-            //         mac,
-            //         uuid: ibeaconUuid,
-            //         major: ibeaconMajor,
-            //         minor: ibeaconMinor,
-            //         rssi,
-            //         txpower: ibeaconTxPower,
-            //         battery: 0,
-            //         battery_timestamp: null,
-            //         rawData: null,
-            //         scann: [
-            //             {
-            //                 group: _this.scannerGroup[scanner],
-            //                 rssi: Math.abs(rssi) < 90 ? rssi : 0
-            //             }
-            //         ],
-            //         log: [
-            //             Math.abs(rssi) < 90 ? _this.scannerGroup[scanner] : null
-            //         ],
-            //         intervalID: undefined
-            //     }
-            // }
-            return
+            _this.beaconData = {
+                ..._this.beaconData,
+                [mac]: {
+                    input_time: timestamp,
+                    timestamp,
+                    type,
+                    mac,
+                    uuid: ibeaconUuid,
+                    major: ibeaconMajor,
+                    minor: ibeaconMinor,
+                    rssi,
+                    txpower: ibeaconTxPower,
+                    battery: 0,
+                    battery_timestamp: null,
+                    rawData: null,
+                    scann: [
+                        {
+                            group: _this.scannerGroup[scanner],
+                            rssi: Math.abs(rssi) < 90 ? rssi : 0
+                        }
+                    ],
+                    log: [
+                        Math.abs(rssi) < 90 ? _this.scannerGroup[scanner] : null
+                    ],
+                    intervalID: undefined
+                }
+            }
         }
     },
     unKnownHandler(data) {
@@ -365,7 +327,7 @@ const bleserver = {
             input_time, timestamp, type, mac, uuid,
             major, minor, rssi,
             battery, battery_timestamp,
-            log, location, prev_location, scanner,
+            log, location, scanner,
             x_axis, y_axis, z_axis,
             txpower: tx_power,
             rawData: rawdata
@@ -373,7 +335,7 @@ const bleserver = {
         let _alarmState = minor;
         if (minor === 2) {
             const isMacProperty = this.emergency.hasOwnProperty(mac);
-            console.log('emergency---->>>>>>>', isMacProperty)
+            console.log('emergency---->>>>>>>',isMacProperty)
             if (isMacProperty) {
                 // 변경
                 // delete this.emergency[mac];
@@ -393,7 +355,7 @@ const bleserver = {
         } else {
             // minor === 1
             const isMacProperty = this.emergency.hasOwnProperty(mac);
-            if (isMacProperty) {
+            if(isMacProperty){
                 // minor: 2--->1 정상으로 돌아옴
                 delete this.emergency[mac];
             }
@@ -402,7 +364,7 @@ const bleserver = {
 
         const _query = queryConfig.insert('log_beacon');
         const insertData = {
-            input_time: moment().format('YYYY-MM-DD HH:mm:ss'),
+            input_time: moment().format('YYYY-MM-DD HH:mm:ss.SSS'),
             timestamp: timestamp,
             type,
             mac,
@@ -420,13 +382,7 @@ const bleserver = {
             battery,
             battery_timestamp: moment().format('YYYY-MM-DD HH:mm:ss.SSS'),
             rawdata
-        };
-        // if(prev_location===null || prev_location !== location){
-        //     if(prev_location !== location){
-        //         _this.outBeacon(data);
-        //     }   
-        //     _this.beaconData[mac].prev_location = location;
-        // }
+        }
 
         pool.getConnection((err, connection) => {
             if (err) {
@@ -438,60 +394,6 @@ const bleserver = {
                     } else {
                         // console.log(results);
 
-                        //log_ble_io 테이블에 insert
-                        console.log('asdjhlkadsjfdas--->>',_this.beaconData)
-                        if (!_this.beaconData[mac].ble_input_time) {
-                            const logData = {
-                                ble_input_time: insertData.input_time,
-                                bc_address: insertData.mac,
-                                sc_group: data.location,
-                                bc_used_type: data.bc_used_type,
-                                name: data.bc_used_type === 1 ? data.wk_name : data.vh_name,
-                                co_name: data.bc_used_type === 1 ? data.wk_co_name : data.vh_co_name,
-                                nation: data.bc_used_type === 1 ? data.wk_nation : null,
-                                position: data.bc_used_type === 1 ? data.wk_position : null,
-                                number: data.bc_used_type === 1 ? data.wk_phone : data.vh_number,
-                            }
-                            _this.bleLogInsert(logData);
-                        }
-                    }
-                });
-            }
-            connection.release();
-        })
-    },
-    bleLogInsert(data) {
-        const _this = this;
-        const _query = `INSERT INTO log_ble_io SET ?;`;
-
-        const insertData = {
-            ble_input_time: data.ble_input_time,
-            bc_address: data.bc_address,
-            sc_group: data.sc_group,
-            bc_used_type: data.bc_used_type,
-            name: data.name,
-            co_name: data.co_name,
-            nation: data.nation,
-            position: data.position,
-            number: data.number
-        };
-
-
-        pool.getConnection((err, connection) => {
-            if (err) {
-                console.error(err)
-            } else {
-                connection.query(_query, insertData, (err, results, field) => {
-                    if (err) {
-                        console.error(err)
-                    } else {
-                        _this.beaconData = {
-                            ..._this.beaconData,
-                            [data.bc_address]: {
-                                ..._this.beaconData[data.bc_address],
-                                ble_input_time: insertData.ble_input_time
-                            }
-                        }
                     }
                 });
             }
@@ -499,7 +401,6 @@ const bleserver = {
         })
     },
     outBeacon(data) {
-        const _this = this;
         const _query = queryConfig.update('info_beacon', 'bc_address');
         const { timestamp, input_time, mac, major, minor, battery, battery_timestamp } = data;
         const _updateData = {
@@ -520,7 +421,7 @@ const bleserver = {
                     if (err) {
                         console.error(err)
                     } else {
-                        delete _this.beaconData[mac];
+                        console.log(results);
                     }
                 });
             }
@@ -540,7 +441,7 @@ const bleserver = {
                         console.error(err)
                     } else {
                         console.log(results);
-                        if (results[0].wk_id !== null) {
+                        if(results[0].wk_id !== null){
                             _this.insertEmergency(results[0]);
                         } else {
                             return;
@@ -564,7 +465,7 @@ const bleserver = {
                         console.error(err)
                     } else {
                         let reqData = [];
-                        console.log('--->', results)
+                        console.log('--->',results)
                         results.map(item => {
                             const _data = {
                                 destPhone: item.wk_phone,
@@ -603,26 +504,26 @@ const bleserver = {
             console.log('body:', body); // Print the HTML for the Google homepage.s
         });
     },
-    insertEmergency(data) {
+    insertEmergency(data){
         const _query = queryConfig.insert('log_emergency');
         const insertData = {
             emg_start_time: moment().format('YYYY-MM-DD HH:mm:ss.SSS'),
             bc_address: data.bc_address,
             scn_group: data.sc_group,
-            wk_name: data.wk_name,
-            wk_birth: data.wk_birth,
-            wk_phone: data.wk_phone,
-            wk_co_name: data.wk_co_name,
+            wk_name:data.wk_name,
+            wk_birth:data.wk_birth,
+            wk_phone:data.wk_phone,
+            wk_co_name:data.wk_co_name,
             local_index: data.local_index,
-            local_name: data.local_name
+            local_name:data.local_name
 
         };
-
+        
         pool.getConnection((err, connection) => {
             if (err) {
                 console.error(err)
             } else {
-                connection.query(_query, insertData, (err, results, field) => {
+                connection.query(_query,insertData, (err, results, field) => {
                     if (err) {
                         console.error(err)
                     } else {

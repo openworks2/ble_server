@@ -82,8 +82,7 @@ const bleserver = {
                                     }
                                 } else {
                                     // _this.beaconData.remove(_mac);
-                                    // _this.outBeacon(_this.beaconData[_mac]);
-                                    delete _this.beaconData[_mac];
+                                    delete _this.beaconData[mac];
                                 }
                             } else {
                                 if (item.bc_used_type !== 0) {
@@ -93,7 +92,7 @@ const bleserver = {
                                             ...item,
                                             scann: [],
                                             log: [],
-                                            prev_location: null
+                                            prev_location:null
                                         }
                                     }
                                 }
@@ -101,6 +100,9 @@ const bleserver = {
 
                             return item;
                         });
+
+
+
                         console.log('beaconData--->>', _this.beaconData)
 
 
@@ -129,7 +131,7 @@ const bleserver = {
                             return obj;
                         }, {});
                         _this.scannerGroup = obj;
-                        // console.log(_this.scannerGroup)
+                        console.log(_this.scannerGroup)
                     }
                 });
             }
@@ -225,34 +227,33 @@ const bleserver = {
 
         } else {
             // 처음 수신
-            // _this.beaconData = {
-            //     ..._this.beaconData,
-            //     [mac]: {
-            //         input_time: timestamp,
-            //         timestamp,
-            //         type,
-            //         mac,
-            //         uuid: ibeaconUuid,
-            //         major: ibeaconMajor,
-            //         minor: ibeaconMinor,
-            //         rssi,
-            //         txpower: ibeaconTxPower,
-            //         battery: 0,
-            //         battery_timestamp: null,
-            //         rawData: null,
-            //         scann: [
-            //             {
-            //                 group: _this.scannerGroup[scanner],
-            //                 rssi: Math.abs(rssi) < 90 ? rssi : 0
-            //             }
-            //         ],
-            //         log: [
-            //             Math.abs(rssi) < 90 ? _this.scannerGroup[scanner] : null
-            //         ],
-            //         intervalID: undefined
-            //     }
-            // }
-            return
+            _this.beaconData = {
+                ..._this.beaconData,
+                [mac]: {
+                    input_time: timestamp,
+                    timestamp,
+                    type,
+                    mac,
+                    uuid: ibeaconUuid,
+                    major: ibeaconMajor,
+                    minor: ibeaconMinor,
+                    rssi,
+                    txpower: ibeaconTxPower,
+                    battery: 0,
+                    battery_timestamp: null,
+                    rawData: null,
+                    scann: [
+                        {
+                            group: _this.scannerGroup[scanner],
+                            rssi: Math.abs(rssi) < 90 ? rssi : 0
+                        }
+                    ],
+                    log: [
+                        Math.abs(rssi) < 90 ? _this.scannerGroup[scanner] : null
+                    ],
+                    intervalID: undefined
+                }
+            }
         }
     },
     unKnownHandler(data) {
@@ -421,12 +422,12 @@ const bleserver = {
             battery_timestamp: moment().format('YYYY-MM-DD HH:mm:ss.SSS'),
             rawdata
         };
-        // if(prev_location===null || prev_location !== location){
-        //     if(prev_location !== location){
-        //         _this.outBeacon(data);
-        //     }   
-        //     _this.beaconData[mac].prev_location = location;
-        // }
+
+        if(prev_location!==null && location !== prev_location){
+            _this.beaconData[mac].prev_location = location;
+            _this.outBeacon(data)
+        }
+
 
         pool.getConnection((err, connection) => {
             if (err) {
@@ -437,20 +438,13 @@ const bleserver = {
                         console.error(err)
                     } else {
                         // console.log(results);
-
-                        //log_ble_io 테이블에 insert
-                        console.log('asdjhlkadsjfdas--->>',_this.beaconData)
                         if (!_this.beaconData[mac].ble_input_time) {
                             const logData = {
                                 ble_input_time: insertData.input_time,
                                 bc_address: insertData.mac,
                                 sc_group: data.location,
                                 bc_used_type: data.bc_used_type,
-                                name: data.bc_used_type === 1 ? data.wk_name : data.vh_name,
-                                co_name: data.bc_used_type === 1 ? data.wk_co_name : data.vh_co_name,
-                                nation: data.bc_used_type === 1 ? data.wk_nation : null,
-                                position: data.bc_used_type === 1 ? data.wk_position : null,
-                                number: data.bc_used_type === 1 ? data.wk_phone : data.vh_number,
+                                name: data.wk_name,
                             }
                             _this.bleLogInsert(logData);
                         }
@@ -470,10 +464,6 @@ const bleserver = {
             sc_group: data.sc_group,
             bc_used_type: data.bc_used_type,
             name: data.name,
-            co_name: data.co_name,
-            nation: data.nation,
-            position: data.position,
-            number: data.number
         };
 
 
@@ -520,6 +510,7 @@ const bleserver = {
                     if (err) {
                         console.error(err)
                     } else {
+                        console.log(_this.beaconData);
                         delete _this.beaconData[mac];
                     }
                 });
