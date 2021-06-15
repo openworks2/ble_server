@@ -21,7 +21,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon app.js",
-    "dist":"pm2 start ./app.js --name AMONS_BLE_SERVER(8080)"
+    "dist":"pm2 start ./app.js --name HANWHA_BLE_SERVER(8084) --log-date-format \"YYYY-MM-DD HH:mm:ss\""
   },
   "author": "",
   "license": "ISC",

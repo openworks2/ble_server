@@ -54,7 +54,7 @@ const bleserver = {
             } else {
                 connection.query(_query, (err, results, field) => {
                     if (err) {
-
+                        connection.release();
                     } else {
                         // const obj = results.reduce((obj, cur) => {
                         //     // obj[cur.bc_index] = cur;
@@ -101,14 +101,11 @@ const bleserver = {
 
                             return item;
                         });
-                        console.log('beaconData--->>', _this.beaconData)
-
-
 
                     }
                 });
+                connection.release();
             }
-            connection.release();
         });
 
     },
@@ -132,8 +129,8 @@ const bleserver = {
                         // console.log(_this.scannerGroup)
                     }
                 });
+                connection.release();
             }
-            connection.release();
 
         });
     },
@@ -163,7 +160,7 @@ const bleserver = {
     }, // end receive Fncs
     receiveHandler(data, scanner) {
         const _this = this;
-        console.log(_this.scannerGroup)
+        // console.log(_this.scannerGroup)
         const {
             type, timestamp,
             mac, ibeaconUuid,
@@ -220,7 +217,6 @@ const bleserver = {
                 // 수신 스캐너 그룹 초기화
                 _this.beaconData[mac].scann = [];
                 _this.beaconData[mac].log = [];
-                // console.log(_this.beaconData[mac])
             }
 
         } else {
@@ -270,10 +266,7 @@ const bleserver = {
 
         const bettery = rawData.substring(20, 22); // Battery level data(100%)
         const bettery_dec = converter.hexToDec(`0x${bettery}`)
-        // console.log('Xaxis->', Xaxis,'--DESC-->',Xaxis_dec)
-        // console.log('Yaxis->', Yaxis,'--DESC-->',Yaxis_dec)
-        // console.log('Zaxis->', Zaxis,'--DESC-->',Zaxis_dec)
-        // console.log('bettery->', bettery,'--DESC-->',bettery_dec)
+
 
         // beaconData에 처음 수신
         _this.beaconData = {
@@ -439,7 +432,6 @@ const bleserver = {
                         // console.log(results);
 
                         //log_ble_io 테이블에 insert
-                        console.log('asdjhlkadsjfdas--->>',_this.beaconData)
                         if (!_this.beaconData[mac].ble_input_time) {
                             const logData = {
                                 ble_input_time: insertData.input_time,
@@ -564,7 +556,6 @@ const bleserver = {
                         console.error(err)
                     } else {
                         let reqData = [];
-                        console.log('--->', results)
                         results.map(item => {
                             const _data = {
                                 destPhone: item.wk_phone,
