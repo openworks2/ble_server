@@ -101,14 +101,10 @@ const bleserver = {
 
                             return item;
                         });
-                        console.log('beaconData--->>', _this.beaconData)
-
-
-
                     }
                 });
+                connection.release();
             }
-            connection.release();
         });
 
     },
@@ -132,9 +128,8 @@ const bleserver = {
                         // console.log(_this.scannerGroup)
                     }
                 });
+                connection.release();
             }
-            connection.release();
-
         });
     },
     receive(receiveData, scanner) {
@@ -163,7 +158,7 @@ const bleserver = {
     }, // end receive Fncs
     receiveHandler(data, scanner) {
         const _this = this;
-        console.log(_this.scannerGroup)
+        // console.log(_this.scannerGroup)
         const {
             type, timestamp,
             mac, ibeaconUuid,
@@ -210,7 +205,7 @@ const bleserver = {
             if (scannLength >= 5) {
 
                 const location = _this.getLocation(_this.beaconData[mac])
-                console.log('location--->', location)
+                // console.log('location--->', location)
                 _this.beaconData[mac].location = location;
 
                 _this.inputBeacon(_this.beaconData[mac])
@@ -311,7 +306,6 @@ const bleserver = {
                 [keys]: result
             };
         }
-        console.log("01.avrArr-->", avrRssi);
 
         //** 빈도 수 연산 */
         // #1.내림차순 정렬
@@ -341,10 +335,8 @@ const bleserver = {
         let resultGroup = {};
         for (let key in counts) {
             const result = (counts[key] / splitLeng) * 100 * 0.4;
-            console.log(result);
             resultGroup[key] = result + avrRssi[key];
         }
-        console.log("resultGroup-->", resultGroup);
 
         // #5 resultGroup(counts[key]+avrRssi[key]) 객체 비교 중 최댓값 추출
         const keys = Object.keys(resultGroup);
@@ -354,7 +346,6 @@ const bleserver = {
                 mode = val;
             }
         });
-        console.log(mode);
 
         return mode
 
@@ -373,7 +364,6 @@ const bleserver = {
         let _alarmState = minor;
         if (minor === 2) {
             const isMacProperty = this.emergency.hasOwnProperty(mac);
-            console.log('emergency---->>>>>>>', isMacProperty)
             if (isMacProperty) {
                 // 변경
                 // delete this.emergency[mac];
@@ -439,7 +429,6 @@ const bleserver = {
                         // console.log(results);
 
                         //log_ble_io 테이블에 insert
-                        console.log('asdjhlkadsjfdas--->>',_this.beaconData)
                         if (!_this.beaconData[mac].ble_input_time) {
                             const logData = {
                                 ble_input_time: insertData.input_time,
@@ -447,6 +436,7 @@ const bleserver = {
                                 sc_group: data.location,
                                 bc_used_type: data.bc_used_type,
                                 name: data.bc_used_type === 1 ? data.wk_name : data.vh_name,
+                                co_index: data.bc_used_type === 1 ? data.wk_co_index : data.vh_co_index,
                                 co_name: data.bc_used_type === 1 ? data.wk_co_name : data.vh_co_name,
                                 nation: data.bc_used_type === 1 ? data.wk_nation : null,
                                 position: data.bc_used_type === 1 ? data.wk_position : null,
@@ -455,9 +445,9 @@ const bleserver = {
                             _this.bleLogInsert(logData);
                         }
                     }
+                    connection.release();
                 });
             }
-            connection.release();
         })
     },
     bleLogInsert(data) {
@@ -470,6 +460,7 @@ const bleserver = {
             sc_group: data.sc_group,
             bc_used_type: data.bc_used_type,
             name: data.name,
+            co_index: data.co_index,
             co_name: data.co_name,
             nation: data.nation,
             position: data.position,
@@ -493,9 +484,9 @@ const bleserver = {
                             }
                         }
                     }
+                    connection.release();
                 });
             }
-            connection.release();
         })
     },
     outBeacon(data) {
@@ -522,9 +513,9 @@ const bleserver = {
                     } else {
                         delete _this.beaconData[mac];
                     }
+                    connection.release();
                 });
             }
-            connection.release();
         })
 
     },
@@ -539,7 +530,6 @@ const bleserver = {
                     if (err) {
                         console.error(err)
                     } else {
-                        console.log(results);
                         if (results[0].wk_id !== null) {
                             _this.insertEmergency(results[0]);
                         } else {
@@ -547,9 +537,9 @@ const bleserver = {
                         }
                         _this.getAlarmWorkerInfo(results[0]);
                     }
+                    connection.release();
                 });
             }
-            connection.release();
         })
     },
     getAlarmWorkerInfo(sosData) {
@@ -564,7 +554,6 @@ const bleserver = {
                         console.error(err)
                     } else {
                         let reqData = [];
-                        console.log('--->', results)
                         results.map(item => {
                             const _data = {
                                 destPhone: item.wk_phone,
@@ -578,9 +567,9 @@ const bleserver = {
                         });
                         _this.alarmHandler(reqData);
                     }
+                    connection.release();
                 });
             }
-            connection.release();
         })
     },
     alarmHandler(reqData) {
@@ -598,9 +587,9 @@ const bleserver = {
             body: reqData,
             json: true
         }, (error, response, body) => {
-            console.error('error:', error); // Print the error if one occurred
-            console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
-            console.log('body:', body); // Print the HTML for the Google homepage.s
+            // console.error('error:', error); // Print the error if one occurred
+            // console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
+            // console.log('body:', body); // Print the HTML for the Google homepage.s
         });
     },
     insertEmergency(data) {
@@ -626,11 +615,11 @@ const bleserver = {
                     if (err) {
                         console.error(err)
                     } else {
-                        console.log(results);
+
                     }
+                    connection.release();
                 });
             }
-            connection.release();
         })
     }
 
