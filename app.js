@@ -13,7 +13,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 8084;
 
 
 const indexRoute = require('./routes/index');

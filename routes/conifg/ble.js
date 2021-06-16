@@ -54,7 +54,7 @@ const bleserver = {
             } else {
                 connection.query(_query, (err, results, field) => {
                     if (err) {
-
+                        connection.release();
                     } else {
                         // const obj = results.reduce((obj, cur) => {
                         //     // obj[cur.bc_index] = cur;
@@ -101,6 +101,10 @@ const bleserver = {
 
                             return item;
                         });
+<<<<<<< HEAD
+=======
+
+>>>>>>> 1d09bfe49c38cbcf0a49ae1a5f2e8eeb76a0d1a7
                     }
                 });
                 connection.release();
@@ -130,6 +134,10 @@ const bleserver = {
                 });
                 connection.release();
             }
+<<<<<<< HEAD
+=======
+
+>>>>>>> 1d09bfe49c38cbcf0a49ae1a5f2e8eeb76a0d1a7
         });
     },
     receive(receiveData, scanner) {
@@ -215,7 +223,6 @@ const bleserver = {
                 // 수신 스캐너 그룹 초기화
                 _this.beaconData[mac].scann = [];
                 _this.beaconData[mac].log = [];
-                // console.log(_this.beaconData[mac])
             }
 
         } else {
@@ -265,10 +272,7 @@ const bleserver = {
 
         const bettery = rawData.substring(20, 22); // Battery level data(100%)
         const bettery_dec = converter.hexToDec(`0x${bettery}`)
-        // console.log('Xaxis->', Xaxis,'--DESC-->',Xaxis_dec)
-        // console.log('Yaxis->', Yaxis,'--DESC-->',Yaxis_dec)
-        // console.log('Zaxis->', Zaxis,'--DESC-->',Zaxis_dec)
-        // console.log('bettery->', bettery,'--DESC-->',bettery_dec)
+
 
         // beaconData에 처음 수신
         _this.beaconData = {
