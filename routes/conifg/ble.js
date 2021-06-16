@@ -101,10 +101,6 @@ const bleserver = {
 
                             return item;
                         });
-<<<<<<< HEAD
-=======
-
->>>>>>> 1d09bfe49c38cbcf0a49ae1a5f2e8eeb76a0d1a7
                     }
                 });
                 connection.release();
@@ -134,10 +130,6 @@ const bleserver = {
                 });
                 connection.release();
             }
-<<<<<<< HEAD
-=======
-
->>>>>>> 1d09bfe49c38cbcf0a49ae1a5f2e8eeb76a0d1a7
         });
     },
     receive(receiveData, scanner) {
